@@ -1,7 +1,10 @@
 from flask import Flask, jsonify
+from flask_cors import CORS  # 👈 Add this
 import requests
 
 app = Flask(__name__)
+CORS(app)  # 👈 Enable CORS for all routes
+
 
 @app.route('/fpl-data')
 def fpl_data():
