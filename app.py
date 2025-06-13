@@ -10,10 +10,8 @@ def get_gameweek():
     data = res.json()
     current_gw = data["status"][0]["event"]
     return jsonify({"gameweek": current_gw})
-
 @app.route('/top-picks')
 def top_picks():
-    # Load data from FPL API
     players_data = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
     fixtures_data = requests.get("https://fantasy.premierleague.com/api/fixtures/").json()
     event_status = requests.get("https://fantasy.premierleague.com/api/event-status/").json()
@@ -23,10 +21,10 @@ def top_picks():
     teams = {team['id']: team['name'] for team in players_data['teams']}
     team_short_names = {team['id']: team['short_name'] for team in players_data['teams']}
 
-    # Filter valid upcoming fixtures
+    # Get only fixtures in this gameweek
     upcoming_fixtures = [f for f in fixtures_data if f['event'] == current_gw]
 
-    top_picks = []
+    scored_picks = []
     for player in players:
         if player['minutes'] < 300:
             continue
@@ -36,33 +34,36 @@ def top_picks():
         ):
             continue
 
-        value = player['total_points'] / player['minutes']
-        if float(player['form']) >= 5 and value >= 0.1:
-            team_id = player['team']
-            team_name = teams[team_id]
-            form = float(player['form'])
+        form = float(player['form'])
+        if form < 5:
+            continue
 
-            # Find upcoming fixture for the player's team
-            fixture = next((f for f in upcoming_fixtures if f['team_h'] == team_id or f['team_a'] == team_id), None)
-            if not fixture:
-                continue
+        team_id = player['team']
+        team_name = teams[team_id]
 
-            is_home = fixture['team_h'] == team_id
-            opponent_id = fixture['team_a'] if is_home else fixture['team_h']
-            opponent = team_short_names[opponent_id]
-            location = 'H' if is_home else 'A'
+        # Find their fixture this week
+        fixture = next((f for f in upcoming_fixtures if f['team_h'] == team_id or f['team_a'] == team_id), None)
+        if not fixture:
+            continue
 
-            top_picks.append({
-                'name': f"{player['first_name']} {player['second_name']}",
-                'team': team_name,
-                'opponent': f"{opponent} ({location})",
-                'form': player['form'],
-                'points': player['total_points'],
-                'price': player['now_cost'] / 10
-            })
+        is_home = fixture['team_h'] == team_id
+        opponent_id = fixture['team_a'] if is_home else fixture['team_h']
+        difficulty = fixture['team_h_difficulty'] if is_home else fixture['team_a_difficulty']
 
-    top_picks = sorted(top_picks, key=lambda x: float(x['form']), reverse=True)[:10]
-    return jsonify(top_picks)
+        score = (form * 2) + (6 - difficulty)  # Higher form, easier opponent = better
+
+        scored_picks.append({
+            'name': f"{player['first_name']} {player['second_name']}",
+            'team': team_name,
+            'opponent': f"{team_short_names[opponent_id]} ({'H' if is_home else 'A'})",
+            'form': player['form'],
+            'points': player['total_points'],
+            'price': player['now_cost'] / 10,
+            'score': round(score, 2)
+        })
+
+    top_5 = sorted(scored_picks, key=lambda x: x['score'], reverse=True)[:5]
+    return jsonify(top_5)
 
 @app.route('/fpl-data')
 def fpl_data():
