@@ -41,7 +41,7 @@ def top_picks():
 
         team_id = player['team']
         team_name = teams[team_id]
-        player_position = positions[player['element_type']]
+        position_name = positions[player['element_type']]
 
         fixture = next((f for f in upcoming_fixtures if f['team_h'] == team_id or f['team_a'] == team_id), None)
         if not fixture:
@@ -51,21 +51,21 @@ def top_picks():
         opponent_id = fixture['team_a'] if is_home else fixture['team_h']
         difficulty = fixture['team_h_difficulty'] if is_home else fixture['team_a_difficulty']
 
-        score = (form * 2) + (6 - difficulty)
+        # ⚖️ Adjusted scoring balance: form less dominant
+        pe_score = round((form * 1.5) + (6 - difficulty) * 1.5, 2)
 
         scored_picks.append({
             'name': f"{player['first_name']} {player['second_name']}",
             'team': team_name,
-            'position': player_position,
+            'position': position_name,
             'opponent': f"{team_short_names[opponent_id]} ({'H' if is_home else 'A'})",
             'form': player['form'],
             'points': player['total_points'],
             'price': player['now_cost'] / 10,
-            'score': round(score, 2)
+            'pe': pe_score
         })
 
-    # Sort by score
-    sorted_players = sorted(scored_picks, key=lambda x: x['score'], reverse=True)
+    sorted_players = sorted(scored_picks, key=lambda x: x['pe'], reverse=True)
 
     final_team = []
     position_count = {'GK': 0, 'DEF': 0, 'MID': 0, 'FWD': 0}
@@ -73,7 +73,6 @@ def top_picks():
     for player in sorted_players:
         pos = player['position']
 
-        # Ensure we have at least 1 goalkeeper
         if pos == 'GK' and position_count['GK'] < 1:
             final_team.append(player)
             position_count['GK'] += 1
