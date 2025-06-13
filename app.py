@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS  # 👈 Add this
 import requests
-
+from flask import request
 app = Flask(__name__)
 CORS(app)  # 👈 Enable CORS for all routes
 @app.route('/gameweek')
