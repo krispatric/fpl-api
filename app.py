@@ -10,23 +10,23 @@ def get_gameweek():
     data = res.json()
     current_gw = data["status"][0]["event"]
     return jsonify({"gameweek": current_gw})
+
 @app.route('/top-picks')
 def top_picks():
     players_data = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
     fixtures_data = requests.get("https://fantasy.premierleague.com/api/fixtures/").json()
-    event_status = requests.get("https://fantasy.premierleague.com/api/event-status/").json()
-    current_gw = event_status["status"][0]["event"]
-
-    players = players_data['elements']
     teams = {team['id']: team['name'] for team in players_data['teams']}
     team_short_names = {team['id']: team['short_name'] for team in players_data['teams']}
     positions = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
 
-    upcoming_fixtures = [f for f in fixtures_data if f['event'] == current_gw]
+    # ✅ Get GW from query param (default to 38)
+    gw = int(request.args.get('gw', 38))
+
+    upcoming_fixtures = [f for f in fixtures_data if f['event'] == gw]
 
     scored_picks = []
 
-    for player in players:
+    for player in players_data['elements']:
         if player['minutes'] < 300:
             continue
         if player['news'] or (
@@ -51,7 +51,6 @@ def top_picks():
         opponent_id = fixture['team_a'] if is_home else fixture['team_h']
         difficulty = fixture['team_h_difficulty'] if is_home else fixture['team_a_difficulty']
 
-        # ⚖️ Adjusted scoring balance: form less dominant
         pe_score = round((form * 1.5) + (6 - difficulty) * 1.5, 2)
 
         scored_picks.append({
