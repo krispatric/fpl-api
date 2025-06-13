@@ -20,11 +20,12 @@ def top_picks():
     players = players_data['elements']
     teams = {team['id']: team['name'] for team in players_data['teams']}
     team_short_names = {team['id']: team['short_name'] for team in players_data['teams']}
+    positions = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
 
-    # Get only fixtures in this gameweek
     upcoming_fixtures = [f for f in fixtures_data if f['event'] == current_gw]
 
     scored_picks = []
+
     for player in players:
         if player['minutes'] < 300:
             continue
@@ -40,8 +41,8 @@ def top_picks():
 
         team_id = player['team']
         team_name = teams[team_id]
+        player_position = positions[player['element_type']]
 
-        # Find their fixture this week
         fixture = next((f for f in upcoming_fixtures if f['team_h'] == team_id or f['team_a'] == team_id), None)
         if not fixture:
             continue
@@ -50,11 +51,12 @@ def top_picks():
         opponent_id = fixture['team_a'] if is_home else fixture['team_h']
         difficulty = fixture['team_h_difficulty'] if is_home else fixture['team_a_difficulty']
 
-        score = (form * 2) + (6 - difficulty)  # Higher form, easier opponent = better
+        score = (form * 2) + (6 - difficulty)
 
         scored_picks.append({
             'name': f"{player['first_name']} {player['second_name']}",
             'team': team_name,
+            'position': player_position,
             'opponent': f"{team_short_names[opponent_id]} ({'H' if is_home else 'A'})",
             'form': player['form'],
             'points': player['total_points'],
@@ -62,8 +64,27 @@ def top_picks():
             'score': round(score, 2)
         })
 
-    top_5 = sorted(scored_picks, key=lambda x: x['score'], reverse=True)[:5]
-    return jsonify(top_5)
+    # Sort by score
+    sorted_players = sorted(scored_picks, key=lambda x: x['score'], reverse=True)
+
+    final_team = []
+    position_count = {'GK': 0, 'DEF': 0, 'MID': 0, 'FWD': 0}
+
+    for player in sorted_players:
+        pos = player['position']
+
+        # Ensure we have at least 1 goalkeeper
+        if pos == 'GK' and position_count['GK'] < 1:
+            final_team.append(player)
+            position_count['GK'] += 1
+        elif pos != 'GK' and len(final_team) < 11:
+            final_team.append(player)
+            position_count[pos] += 1
+
+        if len(final_team) == 11:
+            break
+
+    return jsonify(final_team)
 
 @app.route('/fpl-data')
 def fpl_data():
