@@ -15,7 +15,7 @@ def fpl_data():
     for player in players:
         if player['minutes'] < 300:
             continue
-        if player['news'] or player.get('chance_of_playing_next_round', 100) < 75:
+if player['news'] or (player.get('chance_of_playing_next_round') is not None and player['chance_of_playing_next_round'] < 75):
             continue
 
         value = player['total_points'] / player['minutes']
