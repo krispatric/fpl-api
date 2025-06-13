@@ -4,6 +4,12 @@ import requests
 
 app = Flask(__name__)
 CORS(app)  # 👈 Enable CORS for all routes
+@app.route('/gameweek')
+def get_gameweek():
+    res = requests.get("https://fantasy.premierleague.com/api/event-status/")
+    data = res.json()
+    current_gw = data["status"][0]["event"]
+    return jsonify({"gameweek": current_gw})
 
 @app.route('/top-picks')
 def top_picks():
